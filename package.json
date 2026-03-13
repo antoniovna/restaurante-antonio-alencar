@@ -4,7 +4,8 @@
   "description": "Sistema de Gestão de Marmitas - MySQL Version",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "lint": "eslint"
   },
   "dependencies": {
     "express": "4.16.0",

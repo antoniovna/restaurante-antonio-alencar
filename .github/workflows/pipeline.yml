@@ -1,5 +1,3 @@
-name: CI - integracao contina - Teste devops
-
 on:
 
   push:
@@ -18,19 +16,17 @@ jobs:
 
     runs-on: ubuntu-latest
 
-
-
     steps:
 
       - name: Checkout do código
 
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
 
 
       - name: Configurar Node.js 18
 
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v4
 
         with:
 
@@ -47,4 +43,50 @@ jobs:
       - name: Verificar sintaxe do projeto
 
         run: node --check index.js
+
+  estagio_lint:
+
+    runs-on: ubuntu-latest
+
+    needs: estagio_build 
+
+    steps:
+
+      - name: Checkout do código
+
+        uses: actions/checkout@v4
+
+
+
+      - name: Configurar Node.js 18
+
+        uses: actions/setup-node@v4
+
+        with:
+
+          node-version: '18'
+
+
+
+      - name: Gerar lockfile temporário
+
+        run: npm install --package-lock-only
+
+
+
+      - name: Instalar dependências
+
+        run: npm ci
+
+
+
+      - name: Rodar lint
+
+        run: npm run lint
+
+
+
+      - name: Rodar build
+
+        run: npm run build
 

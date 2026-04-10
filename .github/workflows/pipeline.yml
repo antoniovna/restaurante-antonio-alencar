@@ -180,8 +180,8 @@ jobs:
 
           args: >
 
-            -Dsonar.projectKey=restaurante-antonio
+            -Dsonar.projectKey=petiscos-do-antonio
 
-            -Dsonar.projectName="Restaurante Antonio de Alencar"
+            -Dsonar.projectName="Petiscos do Antonio"
 
             -Dsonar.sources=.

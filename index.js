@@ -2,7 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const mysql = require('mysql2/promise');
 const path = require('path');
-const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 const app = express();
 
@@ -42,7 +42,8 @@ app.post('/login', async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM users WHERE username = ?', [username]);
         if (rows.length > 0) {
-            const match = await bcrypt.compare(password, rows[0].password);
+            const hash = crypto.createHash('sha256').update(password).digest('hex');
+            const match = (hash === rows[0].password);
             if (match) res.redirect('/dashboard');
             else res.send('<h1>Login Inválido</h1><a href="/">Voltar</a>');
         } else {
@@ -56,7 +57,7 @@ app.post('/login', async (req, res) => {
 app.post('/register', async (req, res) => {
     const { username, password } = req.body;
     try {
-        const hash = await bcrypt.hash(password, 10);
+        const hash = crypto.createHash('sha256').update(password).digest('hex');
         await pool.query('INSERT INTO users (username, password) VALUES (?, ?)', [username, hash]);
         res.send('<h1>Conta registrada com sucesso!</h1><a href="/">Ir para o Login</a>');
     } catch (err) {

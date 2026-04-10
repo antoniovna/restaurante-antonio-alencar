@@ -2,6 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const mysql = require('mysql2/promise');
 const path = require('path');
+const bcrypt = require('bcryptjs');
 
 const app = express();
 
@@ -39,11 +40,28 @@ app.get('/', (req, res) => res.render('login'));
 app.post('/login', async (req, res) => {
     const { username, password } = req.body;
     try {
-        const [rows] = await pool.query('SELECT * FROM users WHERE username = ? AND password = ?', [username, password]);
-        if (rows.length > 0) res.redirect('/dashboard');
-        else res.send('<h1>Login Inválido</h1><a href="/">Voltar</a>');
+        const [rows] = await pool.query('SELECT * FROM users WHERE username = ?', [username]);
+        if (rows.length > 0) {
+            const match = await bcrypt.compare(password, rows[0].password);
+            if (match) res.redirect('/dashboard');
+            else res.send('<h1>Login Inválido</h1><a href="/">Voltar</a>');
+        } else {
+            res.send('<h1>Login Inválido</h1><a href="/">Voltar</a>');
+        }
     } catch (err) {
         res.status(500).send("Erro no banco.");
+    }
+});
+
+app.post('/register', async (req, res) => {
+    const { username, password } = req.body;
+    try {
+        const hash = await bcrypt.hash(password, 10);
+        await pool.query('INSERT INTO users (username, password) VALUES (?, ?)', [username, hash]);
+        res.send('<h1>Conta registrada com sucesso!</h1><a href="/">Ir para o Login</a>');
+    } catch (err) {
+        if (err.code === 'ER_DUP_ENTRY') res.status(400).send("<h1>Usuário já existe.</h1><a href='/'>Voltar</a>");
+        else res.status(500).send("Erro no servidor.");
     }
 });
 

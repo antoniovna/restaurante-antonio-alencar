@@ -1,8 +1,8 @@
 const express = require('express');
-const bodyParser = require('body-parser');
+// body-parser absorvido pelo express
 const mysql = require('mysql2/promise');
 const path = require('path');
-const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 const app = express();
 
@@ -31,7 +31,7 @@ async function connectWithRetry() {
     process.exit(1);
 }
 
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true }));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
@@ -42,7 +42,14 @@ app.post('/login', async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM users WHERE username = ?', [username]);
         if (rows.length > 0) {
-            const match = await bcrypt.compare(password, rows[0].password);
+            let match = false;
+            const passwordParts = rows[0].password.split(':');
+            if (passwordParts.length === 2) {
+                const [salt, key] = passwordParts;
+                const hashedBuffer = crypto.scryptSync(password, salt, 64);
+                const keyBuffer = Buffer.from(key, 'hex');
+                match = hashedBuffer.length === keyBuffer.length && crypto.timingSafeEqual(hashedBuffer, keyBuffer);
+            }
             if (match) res.redirect('/dashboard');
             else res.send('<h1>Login Inválido</h1><a href="/">Voltar</a>');
         } else {
@@ -56,8 +63,10 @@ app.post('/login', async (req, res) => {
 app.post('/register', async (req, res) => {
     const { username, password } = req.body;
     try {
-        const hash = await bcrypt.hash(password, 10);
-        await pool.query('INSERT INTO users (username, password) VALUES (?, ?)', [username, hash]);
+        const salt = crypto.randomBytes(16).toString('hex');
+        const hash = crypto.scryptSync(password, salt, 64).toString('hex');
+        const finalHash = `${salt}:${hash}`;
+        await pool.query('INSERT INTO users (username, password) VALUES (?, ?)', [username, finalHash]);
         res.send('<h1>Conta registrada com sucesso!</h1><a href="/">Ir para o Login</a>');
     } catch (err) {
         if (err.code === 'ER_DUP_ENTRY') res.status(400).send("<h1>Usuário já existe.</h1><a href='/'>Voltar</a>");

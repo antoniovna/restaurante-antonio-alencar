@@ -1,0 +1,15 @@
+<%
+    const statusFlow = ['Aberto', 'Cozinha', 'Entrega', 'Entregue'];
+    const statusEmoji = { 'Aberto': '📋', 'Cozinha': '🔥', 'Entrega': '🚚', 'Entregue': '✅' };
+%>
+<section class="stats-bar">
+    <% statusFlow.forEach(s => { %>
+        <div class="stat-card">
+            <div class="stat-icon s-<%= s.toLowerCase() %>"><%= statusEmoji[s] %></div>
+            <div class="stat-info">
+                <h3 id="stat-<%= s.toLowerCase() %>"><%= orders.filter(o => o.status === s).length %></h3>
+                <p><%= s %></p>
+            </div>
+        </div>
+    <% }) %>
+</section>

@@ -32,6 +32,7 @@ async function connectWithRetry() {
 }
 
 app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
@@ -74,9 +75,90 @@ app.post('/register', async (req, res) => {
     }
 });
 
+// Rota para adicionar itens (ingredientes/marmitas)
+app.post('/add-item', async (req, res) => {
+    const { name, category, price } = req.body;
+    try {
+        await pool.query('INSERT INTO items (name, category, price) VALUES (?, ?, ?)', [name, category || null, price || 0]);
+        res.redirect('/dashboard');
+    } catch (err) {
+        console.error('❌ [ITEMS] Erro ao cadastrar item:', err.message);
+        res.status(500).send("Erro ao cadastrar item.");
+    }
+});
+
+// Rota POST /orders — registra uma venda associando cliente à marmita
+app.post('/orders', async (req, res) => {
+    const { customer_name, item_id } = req.body;
+    if (!customer_name || !item_id) {
+        return res.status(400).send("Nome do cliente e marmita são obrigatórios.");
+    }
+    try {
+        await pool.query(
+            'INSERT INTO orders (customer_name, item_id, status) VALUES (?, ?, ?)',
+            [customer_name.trim(), parseInt(item_id), 'Aberto']
+        );
+        console.log(`✅ [ORDERS] Pedido criado: ${customer_name} → item #${item_id}`);
+        res.redirect('/dashboard');
+    } catch (err) {
+        console.error('❌ [ORDERS] Erro ao criar pedido:', err.message);
+        res.status(500).send("Erro ao registrar pedido.");
+    }
+});
+
+// Rota POST /orders/:id/advance — avança o status do pedido no Kanban
+app.post('/orders/:id/advance', async (req, res) => {
+    const statusFlow = ['Aberto', 'Cozinha', 'Entrega', 'Entregue'];
+    const { id } = req.params;
+    try {
+        const [rows] = await pool.query('SELECT status FROM orders WHERE id = ?', [id]);
+        if (rows.length === 0) {
+            return res.status(404).send("Pedido não encontrado.");
+        }
+        const currentIndex = statusFlow.indexOf(rows[0].status);
+        if (currentIndex === -1 || currentIndex >= statusFlow.length - 1) {
+            return res.status(400).send("Pedido já está no status final.");
+        }
+        const nextStatus = statusFlow[currentIndex + 1];
+        await pool.query('UPDATE orders SET status = ? WHERE id = ?', [nextStatus, id]);
+        console.log(`🔄 [KANBAN] Pedido #${id}: ${rows[0].status} → ${nextStatus}`);
+        res.redirect('/dashboard');
+    } catch (err) {
+        console.error('❌ [KANBAN] Erro ao avançar status:', err.message);
+        res.status(500).send("Erro ao atualizar status.");
+    }
+});
+
+// Rota PUT /orders/:id/status — atualiza status livremente (drag-and-drop)
+app.put('/orders/:id/status', async (req, res) => {
+    const validStatuses = ['Aberto', 'Cozinha', 'Entrega', 'Entregue'];
+    const { id } = req.params;
+    const { status } = req.body;
+    if (!status || !validStatuses.includes(status)) {
+        return res.status(400).json({ error: 'Status inválido.' });
+    }
+    try {
+        const [result] = await pool.query('UPDATE orders SET status = ? WHERE id = ?', [status, id]);
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Pedido não encontrado.' });
+        }
+        console.log(`🔄 [KANBAN-DND] Pedido #${id} → ${status}`);
+        res.json({ success: true, id, status });
+    } catch (err) {
+        console.error('❌ [KANBAN-DND] Erro:', err.message);
+        res.status(500).json({ error: 'Erro ao atualizar status.' });
+    }
+});
+
 app.get('/dashboard', async (req, res) => {
     const [items] = await pool.query('SELECT * FROM items');
-    const [orders] = await pool.query('SELECT * FROM orders');
+    const [orders] = await pool.query(
+        `SELECT orders.id, orders.customer_name, orders.status, orders.created_at,
+                items.name AS item_name, items.category, items.price
+         FROM orders
+         JOIN items ON orders.item_id = items.id
+         ORDER BY orders.created_at DESC`
+    );
     res.render('dashboard', { items, orders });
 });
 

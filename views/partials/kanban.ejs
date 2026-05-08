@@ -1,0 +1,48 @@
+<%
+    const statusFlow = ['Aberto', 'Cozinha', 'Entrega', 'Entregue'];
+    const nextLabel = { 'Aberto': '→ Enviar p/ Cozinha', 'Cozinha': '→ Saiu p/ Entrega', 'Entrega': '→ Marcar Entregue', 'Entregue': '✓ Concluído' };
+    const nextClass = { 'Aberto': 'to-cozinha', 'Cozinha': 'to-entrega', 'Entrega': 'to-entregue', 'Entregue': 'done' };
+    const statusEmoji = { 'Aberto': '📋', 'Cozinha': '🔥', 'Entrega': '🚚', 'Entregue': '✅' };
+%>
+<div class="kanban" id="kanban-board">
+    <% statusFlow.forEach(status => { %>
+        <div class="kanban-col" data-status="<%= status %>" id="col-<%= status.toLowerCase() %>">
+            <div class="kanban-col-header">
+                <span class="col-dot <%= status.toLowerCase() %>"></span>
+                <h3><%= status %></h3>
+                <span class="col-count" id="count-<%= status.toLowerCase() %>"><%= orders.filter(o => o.status === status).length %></span>
+            </div>
+            <div class="kanban-col-body" data-status="<%= status %>">
+                <% const colOrders = orders.filter(o => o.status === status); %>
+                <% if (colOrders.length > 0) { %>
+                    <% colOrders.forEach(order => { %>
+                        <div class="kanban-card" draggable="true"
+                             data-order-id="<%= order.id %>"
+                             data-status="<%= order.status %>"
+                             id="order-<%= order.id %>">
+                            <div class="card-id">#<%= order.id %></div>
+                            <div class="card-customer"><%= order.customer_name %></div>
+                            <div class="card-item">🍱 <%= order.item_name %></div>
+                            <div class="card-price">R$ <%= order.price ? Number(order.price).toFixed(2) : '0.00' %></div>
+                            <div class="card-time"><%= order.created_at ? new Date(order.created_at).toLocaleString('pt-BR') : '—' %></div>
+                            <% if (status !== 'Entregue') { %>
+                                <form action="/orders/<%= order.id %>/advance" method="POST" style="margin:0">
+                                    <button type="submit" class="advance-btn <%= nextClass[status] %>">
+                                        <%= nextLabel[status] %>
+                                    </button>
+                                </form>
+                            <% } else { %>
+                                <div class="advance-btn done">✓ Concluído</div>
+                            <% } %>
+                        </div>
+                    <% }) %>
+                <% } else { %>
+                    <div class="kanban-empty">
+                        <div class="empty-icon"><%= statusEmoji[status] %></div>
+                        <p>Nenhum pedido</p>
+                    </div>
+                <% } %>
+            </div>
+        </div>
+    <% }) %>
+</div>

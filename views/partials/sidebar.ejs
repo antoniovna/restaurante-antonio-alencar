@@ -1,0 +1,64 @@
+<aside class="sidebar">
+    <!-- Registrar Venda -->
+    <div class="card">
+        <div class="card-header"><span>🛒</span><h2>Registrar Venda</h2></div>
+        <div class="card-body">
+            <form action="/orders" method="POST">
+                <div class="form-group">
+                    <label for="customer_name">Nome do Cliente</label>
+                    <input type="text" id="customer_name" name="customer_name" placeholder="Ex: Maria Silva" required autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label for="item_id">Selecione a Marmita</label>
+                    <select id="item_id" name="item_id" required>
+                        <option value="" disabled selected>Escolha uma marmita...</option>
+                        <% items.forEach(item => { %>
+                            <option value="<%= item.id %>"><%= item.name %> (<%= item.category %>) — R$ <%= item.price ? Number(item.price).toFixed(2) : '0.00' %></option>
+                        <% }) %>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">🛒 Registrar Pedido</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Nova Marmita -->
+    <div class="card">
+        <div class="card-header"><span>➕</span><h2>Nova Marmita</h2></div>
+        <div class="card-body">
+            <form action="/add-item" method="POST">
+                <div class="form-group">
+                    <label for="item-name">Nome</label>
+                    <input type="text" id="item-name" name="name" placeholder="Ex: Marmita Fitness" required>
+                </div>
+                <div class="form-group">
+                    <label for="item-category">Categoria</label>
+                    <input type="text" id="item-category" name="category" placeholder="Ex: Premium">
+                </div>
+                <div class="form-group">
+                    <label for="item-price">Preço (R$)</label>
+                    <input type="number" id="item-price" name="price" placeholder="0.00" step="0.01" min="0">
+                </div>
+                <button type="submit" class="btn btn-secondary">➕ Cadastrar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Lista de Marmitas -->
+    <div class="card">
+        <div class="card-header"><span>🍱</span><h2>Marmitas</h2><span class="badge"><%= items.length %></span></div>
+        <div class="card-body" style="padding:8px 12px">
+            <ul class="items-list">
+                <% items.forEach(item => { %>
+                    <li>
+                        <span class="item-name"><%= item.name %></span>
+                        <span class="item-meta">
+                            <% if (item.category) { %><span class="item-category"><%= item.category %></span><% } %>
+                            <span class="item-price">R$ <%= item.price ? Number(item.price).toFixed(2) : '0.00' %></span>
+                        </span>
+                    </li>
+                <% }) %>
+            </ul>
+        </div>
+    </div>
+</aside>

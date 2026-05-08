@@ -1,0 +1,42 @@
+# Dependências instaladas localmente (serão reinstaladas dentro da imagem)
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Metadados de Git e CI (não devem entrar na imagem final)
+.git
+.gitignore
+.github
+
+# Segredos e configurações locais
+.env
+.env.*
+*.pem
+*.key
+
+# Arquivos do próprio Docker (evita recursão e contexto desnecessário)
+Dockerfile
+.dockerignore
+docker-compose.yml
+docker-compose.*.yml
+
+# Artefatos de build / cobertura / cache
+coverage
+.nyc_output
+dist
+build
+.cache
+.tmp
+
+# Documentação e arquivos de IDE (não rodam na imagem)
+README.md
+*.md
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Logs
+logs
+*.log

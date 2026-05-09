@@ -4,6 +4,9 @@ const mysql = require('mysql2/promise');
 const path = require('path');
 const crypto = require('crypto');
 
+// Rotas modulares
+const exportRoutes = require('./routes/exportRoutes');
+
 const app = express();
 
 const dbConfig = {
@@ -163,5 +166,11 @@ app.get('/dashboard', async (req, res) => {
 });
 
 connectWithRetry().then(() => {
+    // Compartilha o pool com as rotas modulares
+    app.set('pool', pool);
+
+    // Monta rotas modulares
+    app.use('/admin', exportRoutes);
+
     app.listen(3000, () => console.log('🚀 MARMITATECH PRO ONLINE NA PORTA 3000'));
 });

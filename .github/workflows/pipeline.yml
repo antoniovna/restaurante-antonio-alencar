@@ -240,7 +240,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: "docker-compose.staging.yml"
           target: "/home/${{ secrets.SSH_USER }}/app"
-
+ 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:

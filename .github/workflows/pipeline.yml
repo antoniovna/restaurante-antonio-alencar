@@ -1,373 +1,254 @@
-name: CI - integracao contina - Teste devops
+name: integracao continua e staging
 
 on:
-
   push:
-
-    branches: [ "develop" ]
-
+    branches: ["develop", "staging"]
   pull_request:
-
-    branches: [ "develop" ]
-
-
+    branches: ["develop"]
 
 jobs:
-
+  # ============================================================================
+  # ESTÁGIO BUILD — Validação de sintaxe e dependências
+  # ============================================================================
   estagio_build:
-
     runs-on: ubuntu-latest
-
     steps:
-
       - name: Checkout do código
-
         uses: actions/checkout@v4
 
-
-
       - name: Configurar Node.js 18
-
         uses: actions/setup-node@v4
-
         with:
-
-          node-version: '18'
-
-
-
-      - name: Instalar dependências
-
-        run: npm install
-
-
-
-      - name: Verificar sintaxe do projeto
-
-        run: node --check index.js
-
-
-
-
-
-  estagio_lint:
-
-    runs-on: ubuntu-latest
-
-    needs: estagio_build
-
-    steps:
-
-      - name: Checkout do código
-
-        uses: actions/checkout@v4
-
-
-
-      - name: Configurar Node.js 18
-
-        uses: actions/setup-node@v4
-
-        with:
-
-          node-version: '18'
-
-
+          node-version: "18"
+          package-manager-cache: false
 
       - name: Gerar lockfile temporário
-
         run: npm install --package-lock-only
 
-
-
       - name: Instalar dependências
-
         run: npm install
 
+      - name: Verificar sintaxe de todos os arquivos JS
+        run: |
+          find . -type f -name "*.js" \
+            ! -path "./node_modules/*" \
+            ! -path "./.git/*" \
+            ! -path "./dist/*" \
+            -exec node --check {} \;
 
+  # ============================================================================
+  # ESTÁGIO LINT — Garante que o código segue o padrão da empresa
+  # ============================================================================
+  estagio_lint:
+    runs-on: ubuntu-latest
+    needs: estagio_build
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
 
-      - name: Instalar globals para ESLint
+      - name: Configurar Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          package-manager-cache: false
 
-        run: npm install --no-save globals
+      - name: Gerar lockfile temporário
+        run: npm install --package-lock-only
 
+      - name: Instalar dependências
+        run: npm install
 
+      - name: Instalar dependências temporárias do lint
+        run: npm install --no-save eslint globals
 
       - name: Criar configuração temporária do ESLint
-
         run: |
-
           cat > eslint.config.js <<'EOF'
-
           const globals = require("globals");
 
-
-
           module.exports = [
-
             {
-
               files: ["**/*.js"],
-
-              ignores: ["node_modules/**"],
-
+              ignores: ["node_modules/**", ".git/**", "dist/**"],
               languageOptions: {
-
                 ecmaVersion: 2021,
-
                 sourceType: "commonjs",
-
                 globals: {
-
                   ...globals.node,
-
                   ...globals.commonjs
-
                 }
-
               },
-
               rules: {
-
                 "no-unused-vars": "warn",
-
                 "no-undef": "error"
-
               }
-
             }
-
           ];
-
           EOF
 
-
-
       - name: Rodar lint
-
         run: npx eslint .
 
-
-
-
-
+  # ============================================================================
+  # JOB SONAR (develop) — Análise de Qualidade de Código
+  # Mede duplicidade, bugs lógicos e segurança de código (Code Smells)
+  # ============================================================================
   job_sonar:
-
     needs: estagio_lint
-
+    if: github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
-
-
-
     steps:
-
       - name: Checkout do código
-
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
+      - name: Criar sonar-project.properties dinâmico
+        run: |
+          echo "sonar.projectKey=${{ github.event.repository.name }}" > sonar-project.properties
+          echo "sonar.projectName=${{ github.event.repository.name }}" >> sonar-project.properties
+          echo "sonar.branch.name=${{ github.ref_name }}" >> sonar-project.properties
+          echo "sonar.sources=." >> sonar-project.properties
+          echo "sonar.sourceEncoding=UTF-8" >> sonar-project.properties
+          echo "sonar.exclusions=node_modules/**,.git/**,.github/**,coverage/**,dist/**" >> sonar-project.properties
 
+      - name: Exibir configuração do Sonar
+        run: cat sonar-project.properties
 
       - name: SonarQube Scan
-
         uses: sonarsource/sonarqube-scan-action@master
-
         env:
-
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-
+          SONAR_HOST_URL: "https://devsecops.dcotech.com.br"
         with:
-
           args: >
-
-            -Dsonar.projectKey=petiscos-do-antonio
-
-            -Dsonar.projectName="Petiscos do Antonio"
-
-            -Dsonar.sources=.
-
-
+            -Dsonar.branch.name=${{ github.ref_name }}
 
   # ============================================================================
-  # ESTÁGIO DOCKER - Build, subida, healthcheck, smoke test e cleanup
-  # ----------------------------------------------------------------------------
-  # Roda depois que o lint passar. Não bloqueia o Sonar (executam em paralelo).
-  # Garante que a stack docker-compose realmente sobe num runner limpo, que o
-  # MySQL fica healthy e que a aplicação Node responde na porta 3000.
+  # JOB RELEASE DOCKER (staging) — Build e Push da imagem para Docker Hub
+  # Gera duas tags: :staging (mutável) e :SHA (imutável, para rollback)
   # ============================================================================
-  estagio_docker:
-
+  job_release_docker:
+    needs: estagio_lint
+    if: github.ref == 'refs/heads/staging'
     runs-on: ubuntu-latest
-    needs: job_sonar
-
     steps:
-
-      # ----------------------------------------------------------------------
-      # 1) Checkout: traz o repositório para dentro do runner.
-      # ----------------------------------------------------------------------
       - name: Checkout do código
         uses: actions/checkout@v4
 
-      # ----------------------------------------------------------------------
-      # 2) Buildx: builder moderno do Docker. Habilita cache de camadas e
-      #    builds multi-plataforma (importante para Kubernetes em arm64/amd64).
-      # ----------------------------------------------------------------------
-      - name: Configurar Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      # ----------------------------------------------------------------------
-      # 3) Mostrar versões instaladas no runner — útil para debug quando o
-      #    GitHub atualiza a imagem ubuntu-latest e algo quebra.
-      # ----------------------------------------------------------------------
-      - name: Verificar versões do Docker e Compose
-        run: |
-          docker --version
-          docker compose version
-
-      # ----------------------------------------------------------------------
-      # 4) Build das imagens declaradas no docker-compose.yml.
-      #    O serviço "app" tem build: . — então a imagem da aplicação é
-      #    construída aqui usando o Dockerfile do repositório.
-      # ----------------------------------------------------------------------
-      - name: Build das imagens via docker compose
-        run: docker compose build
-
-      # ----------------------------------------------------------------------
-      # 5) Sobe a stack em modo detached (-d). O depends_on com
-      #    condition: service_healthy garante que o "app" só inicia depois
-      #    que o MySQL responder ao healthcheck (mysqladmin ping).
-      # ----------------------------------------------------------------------
-      - name: Subir containers (docker compose up -d)
-        run: docker compose up -d
-
-      # ----------------------------------------------------------------------
-      # 6) Espera ativa pelo healthcheck do MySQL. Mesmo com depends_on,
-      #    fazemos polling explícito aqui para falhar rápido com log claro
-      #    caso o banco não fique healthy em até ~60s.
-      # ----------------------------------------------------------------------
-      - name: Aguardar MySQL ficar healthy
-        run: |
-          echo "⏳ Aguardando MySQL ficar healthy..."
-          for i in $(seq 1 30); do
-            status=$(docker inspect --format='{{.State.Health.Status}}' marmitatech-db 2>/dev/null || echo "starting")
-            echo "Tentativa $i/30 - status: $status"
-            if [ "$status" = "healthy" ]; then
-              echo "✅ MySQL está healthy."
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "❌ MySQL não ficou healthy a tempo."
-          docker compose logs db
-          exit 1
-
-      # ----------------------------------------------------------------------
-      # 7) Smoke test da aplicação: faz polling no http://localhost:3000.
-      #    A app tem connectWithRetry() em index.js, então pode levar alguns
-      #    segundos até o listen() ser chamado mesmo após o "up".
-      # ----------------------------------------------------------------------
-      - name: Smoke test da aplicação Node
-        run: |
-          echo "⏳ Aguardando app responder em http://localhost:3000 ..."
-          for i in $(seq 1 30); do
-            if curl -fsS http://localhost:3000/ > /dev/null; then
-              echo "✅ App respondeu na tentativa $i."
-              exit 0
-            fi
-            echo "Tentativa $i/30 falhou, aguardando..."
-            sleep 2
-          done
-          echo "❌ App não respondeu a tempo."
-          docker compose logs app
-          exit 1
-
-      # ----------------------------------------------------------------------
-      # 8) Logs de debug — sempre rodam (success ou failure) para facilitar
-      #    diagnosticar regressões direto pelos artefatos do Actions.
-      # ----------------------------------------------------------------------
-      - name: Coletar logs dos containers
-        if: always()
-        run: |
-          echo "===== docker compose ps ====="
-          docker compose ps
-          echo "===== logs db ====="
-          docker compose logs db || true
-          echo "===== logs app ====="
-          docker compose logs app || true
-
-      # ----------------------------------------------------------------------
-      # 9) Cleanup obrigatório: derruba containers, rede e volumes anônimos.
-      #    Usa if: always() para rodar inclusive quando steps anteriores
-      #    falharem — runner do GitHub é efêmero, mas é boa prática deixar
-      #    explícito (e ajuda quando se roda self-hosted).
-      # ----------------------------------------------------------------------
-      - name: Derrubar containers (cleanup)
-        if: always()
-        run: docker compose down -v --remove-orphans
-
-
-  # ============================================================================
-  # ESTÁGIO PUBLISH - Publicação da imagem no GitHub Container Registry (GHCR)
-  # ----------------------------------------------------------------------------
-  # Só roda em push para develop (não em pull_request, para evitar publicar
-  # imagem de PR de fork). Depende do estagio_docker passar.
-  #
-  # Para habilitar:
-  #   - O GITHUB_TOKEN já tem permissão se o repo permitir packages: write.
-  #   - Caso queira Docker Hub, troque o registry e use secrets:
-  #       DOCKERHUB_USERNAME / DOCKERHUB_TOKEN
-  # ============================================================================
-  estagio_publish:
-
-    runs-on: ubuntu-latest
-    needs: estagio_docker
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
-
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-
-      - name: Checkout do código
-        uses: actions/checkout@v4
-
-      - name: Configurar Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      # ----------------------------------------------------------------------
-      # Login no GHCR usando o token automático do workflow.
-      # ----------------------------------------------------------------------
-      - name: Login no GHCR
+      - name: Login no Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # ----------------------------------------------------------------------
-      # Geração automática de tags e labels OCI a partir do contexto do git.
-      # ----------------------------------------------------------------------
-      - name: Gerar metadados (tags/labels)
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=ref,event=branch
-            type=sha,format=short
-            type=raw,value=latest,enable={{is_default_branch}}
+      - name: Build e Push da Imagem
+        run: |
+          docker build -t antoniovna3434/restaurante-antonio:staging \
+                        -t antoniovna3434/restaurante-antonio:${{ github.sha }} .
+          docker push antoniovna3434/restaurante-antonio:staging
+          docker push antoniovna3434/restaurante-antonio:${{ github.sha }}
 
-      # ----------------------------------------------------------------------
-      # Build & Push da imagem da aplicação. Usa cache do GitHub Actions
-      # para builds incrementais mais rápidos.
-      # ----------------------------------------------------------------------
-      - name: Build e push para GHCR
-        uses: docker/build-push-action@v6
+  # ============================================================================
+  # JOB TRIVY + SONAR (staging) — DevSecOps: Scan de CVE + Análise de Qualidade
+  # 1. Trivy varre a imagem buscando CVEs (OS Layer + App Layer)
+  # 2. Filtra CRITICAL e HIGH (CVSS >= 7.0)
+  # 3. Gera relatório JSON
+  # 4. SonarQube importa o JSON como External Issues (integração Trivy + Sonar)
+  # ============================================================================
+  job_trivy_sonar:
+    needs: job_release_docker
+    if: github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
         with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          fetch-depth: 0
+
+      - name: Scan de Segurança com Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: antoniovna3434/restaurante-antonio:staging
+          format: json
+          output: trivy-report.json
+          severity: CRITICAL,HIGH
+
+      - name: Exibir resumo do Trivy
+        run: |
+          echo "📋 Resumo do scan Trivy:"
+          cat trivy-report.json | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          results = data.get('Results', [])
+          total = sum(len(r.get('Vulnerabilities', [])) for r in results)
+          print(f'Total de vulnerabilidades (CRITICAL+HIGH): {total}')
+          for r in results:
+            for v in r.get('Vulnerabilities', []):
+              print(f'  [{v[\"Severity\"]}] {v[\"VulnerabilityID\"]}: {v.get(\"Title\", \"N/A\")}')
+          "
+
+      - name: Criar sonar-project.properties para staging
+        run: |
+          cat > sonar-project.properties <<EOF
+          sonar.projectKey=${{ github.event.repository.name }}
+          sonar.projectName=${{ github.event.repository.name }}
+          sonar.branch.name=${{ github.ref_name }}
+          sonar.sources=.
+          sonar.sourceEncoding=UTF-8
+          sonar.exclusions=node_modules/**,.git/**,.github/**,coverage/**,dist/**
+          sonar.externalIssuesReportPaths=trivy-report.json
+          EOF
+
+      - name: SonarQube Scan com relatório Trivy
+        uses: sonarsource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: "https://devsecops.dcotech.com.br"
+        with:
+          args: >
+            -Dsonar.branch.name=${{ github.ref_name }}
+
+      # -----------------------------------------------------------------
+      # QUALITY GATE — Descomentar quando o SonarQube tiver QG configurado
+      # -----------------------------------------------------------------
+      # - name: Sonar Quality Gate
+      #   uses: sonarsource/sonarqube-quality-gate-action@master
+      #   timeout-minutes: 5
+      #   env:
+      #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      #     SONAR_HOST_URL: "https://devsecops.dcotech.com.br"
+
+  # ============================================================================
+  # JOB DEPLOY STAGING — Deploy na AWS via SCP + SSH
+  # 1. SCP envia o docker-compose.staging.yml para a EC2
+  # 2. SSH executa docker compose pull + up remotamente
+  # ============================================================================
+  job_deploy_staging:
+    needs: job_trivy_sonar
+    if: github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Enviar docker-compose.staging.yml via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "docker-compose.staging.yml"
+          target: "/home/${{ secrets.SSH_USER }}/app"
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/${{ secrets.SSH_USER }}/app
+            docker compose -f docker-compose.staging.yml pull
+            docker compose -f docker-compose.staging.yml up -d --remove-orphans
+            echo "✅ Deploy staging concluído com sucesso"

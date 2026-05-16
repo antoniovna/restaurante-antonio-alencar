@@ -177,15 +177,49 @@ jobs:
       - name: Exibir resumo do Trivy
         run: |
           echo "📋 Resumo do scan Trivy:"
-          cat trivy-report.json | python3 -c "
-          import json, sys
-          data = json.load(sys.stdin)
+          python3 -c "
+          import json
+          data = json.load(open('trivy-report.json'))
           results = data.get('Results', [])
           total = sum(len(r.get('Vulnerabilities', [])) for r in results)
           print(f'Total de vulnerabilidades (CRITICAL+HIGH): {total}')
           for r in results:
             for v in r.get('Vulnerabilities', []):
               print(f'  [{v[\"Severity\"]}] {v[\"VulnerabilityID\"]}: {v.get(\"Title\", \"N/A\")}')
+          "
+
+      - name: Converter Trivy JSON para formato SonarQube
+        run: |
+          python3 -c "
+          import json
+
+          SEVERITY_MAP = {
+            'CRITICAL': 'CRITICAL',
+            'HIGH': 'MAJOR',
+            'MEDIUM': 'MINOR',
+            'LOW': 'INFO'
+          }
+
+          trivy = json.load(open('trivy-report.json'))
+          issues = []
+
+          for result in trivy.get('Results', []):
+            target = result.get('Target', 'unknown')
+            for vuln in result.get('Vulnerabilities', []):
+              issues.append({
+                'engineId': 'trivy',
+                'ruleId': vuln.get('VulnerabilityID', 'UNKNOWN'),
+                'severity': SEVERITY_MAP.get(vuln.get('Severity', ''), 'INFO'),
+                'type': 'VULNERABILITY',
+                'primaryLocation': {
+                  'message': f\"{vuln.get('VulnerabilityID','')}: {vuln.get('Title','N/A')} (pkg: {vuln.get('PkgName','')}, installed: {vuln.get('InstalledVersion','')}, fixed: {vuln.get('FixedVersion','N/A')})\",
+                  'filePath': 'Dockerfile'
+                }
+              })
+
+          sonar_report = {'issues': issues}
+          json.dump(sonar_report, open('sonar-issues.json', 'w'), indent=2)
+          print(f'✅ Convertido {len(issues)} issues para formato SonarQube')
           "
 
       - name: Criar sonar-project.properties para staging
@@ -197,7 +231,7 @@ jobs:
           sonar.sources=.
           sonar.sourceEncoding=UTF-8
           sonar.exclusions=node_modules/**,.git/**,.github/**,coverage/**,dist/**
-          sonar.externalIssuesReportPaths=trivy-report.json
+          sonar.externalIssuesReportPaths=sonar-issues.json
           EOF
 
       - name: SonarQube Scan com relatório Trivy

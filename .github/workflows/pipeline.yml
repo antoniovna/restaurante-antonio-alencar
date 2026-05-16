@@ -105,8 +105,8 @@ jobs:
 
       - name: Criar sonar-project.properties dinâmico
         run: |
-          echo "sonar.projectKey=${{ github.event.repository.name }}" > sonar-project.properties
-          echo "sonar.projectName=${{ github.event.repository.name }}" >> sonar-project.properties
+          echo "sonar.projectKey=petiscos-do-antonio" > sonar-project.properties
+          echo "sonar.projectName=petiscos-do-antonio" >> sonar-project.properties
           echo "sonar.branch.name=${{ github.ref_name }}" >> sonar-project.properties
           echo "sonar.sources=." >> sonar-project.properties
           echo "sonar.sourceEncoding=UTF-8" >> sonar-project.properties
@@ -191,8 +191,8 @@ jobs:
       - name: Criar sonar-project.properties para staging
         run: |
           cat > sonar-project.properties <<EOF
-          sonar.projectKey=${{ github.event.repository.name }}
-          sonar.projectName=${{ github.event.repository.name }}
+          sonar.projectKey=petiscos-do-antonio
+          sonar.projectName=petiscos-do-antonio
           sonar.branch.name=${{ github.ref_name }}
           sonar.sources=.
           sonar.sourceEncoding=UTF-8

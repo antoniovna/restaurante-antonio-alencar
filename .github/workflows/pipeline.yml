@@ -90,12 +90,13 @@ jobs:
         run: npx eslint .
 
   # ============================================================================
-  # JOB SONAR (develop) — Análise de Qualidade de Código
+  # JOB SONAR (develop e staging) — Análise de Qualidade de Código
   # Mede duplicidade, bugs lógicos e segurança de código (Code Smells)
+  # Em develop é o último estágio; em staging é pré-requisito do release/deploy.
   # ============================================================================
   job_sonar:
     needs: estagio_lint
-    if: github.ref == 'refs/heads/develop'
+    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/staging'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout do código
@@ -129,7 +130,7 @@ jobs:
   # Gera duas tags: :staging (mutável) e :SHA (imutável, para rollback)
   # ============================================================================
   job_release_docker:
-    needs: estagio_lint
+    needs: job_sonar
     if: github.ref == 'refs/heads/staging'
     runs-on: ubuntu-latest
     steps:

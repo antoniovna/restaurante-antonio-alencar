@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarmitaTech PRO - Marmitas</title>
+    <%- include('partials/styles') %>
+</head>
+<body>
+
+<%- include('partials/header') %>
+
+<div class="app-body">
+    <%- include('partials/nav') %>
+    <div class="page-content">
+
+        <%
+            const categories = [...new Set(items.map(i => i.category).filter(Boolean))];
+            const avgPrice = items.length
+                ? (items.reduce((s, i) => s + Number(i.price || 0), 0) / items.length).toFixed(2)
+                : '0.00';
+            const topItem = items.length
+                ? items.reduce((a, b) => Number(a.price) > Number(b.price) ? a : b)
+                : null;
+        %>
+
+        <section class="stats-bar">
+            <div class="stat-card">
+                <div class="stat-icon s-total">🍱</div>
+                <div class="stat-info">
+                    <h3><%= items.length %></h3>
+                    <p>Marmitas</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon s-cat">🏷️</div>
+                <div class="stat-info">
+                    <h3><%= categories.length %></h3>
+                    <p>Categorias</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon s-avg">💰</div>
+                <div class="stat-info">
+                    <h3>R$ <%= avgPrice %></h3>
+                    <p>Preço Médio</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon s-top">⭐</div>
+                <div class="stat-info">
+                    <h3 style="font-size:<%= topItem && topItem.name.length > 12 ? '14px' : '22px' %>;line-height:1.3"><%= topItem ? topItem.name : '—' %></h3>
+                    <p>Mais Cara</p>
+                </div>
+            </div>
+        </section>
+
+        <div class="content-area">
+            <% if (locals.flash) { %>
+            <div style="background:rgba(46,160,67,.12);border:1px solid rgba(63,185,80,.2);border-radius:10px;padding:12px 18px;margin-bottom:20px;font-size:13px;color:#3fb950;font-weight:600">
+                <%= flash %>
+            </div>
+            <% } %>
+
+            <div class="card">
+                <div class="card-header">
+                    <span>🍱</span>
+                    <h2>Marmitas Cadastradas</h2>
+                    <span class="badge"><%= items.length %></span>
+                    <button class="btn-add" id="btn-nova" style="margin-left:auto">+ Nova Marmita</button>
+                </div>
+                <div class="card-body" style="padding:0">
+                    <% if (items.length === 0) { %>
+                        <div class="empty-table">
+                            <div class="empty-icon">🍱</div>
+                            <p>Nenhuma marmita cadastrada ainda.</p>
+                            <p style="font-size:12px;margin-top:6px;color:#30363d">Clique em <strong style="color:#58a6ff">+ Nova Marmita</strong> para começar.</p>
+                        </div>
+                    <% } else { %>
+                        <div class="table-wrap">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Nome</th>
+                                        <th>Categoria</th>
+                                        <th>Preço</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% items.forEach(item => { %>
+                                        <tr>
+                                            <td style="color:#484f58;font-weight:700;font-size:12px">#<%= item.id %></td>
+                                            <td style="font-weight:600"><%= item.name %></td>
+                                            <td>
+                                                <% if (item.category) { %>
+                                                    <span class="pill"><%= item.category %></span>
+                                                <% } else { %>
+                                                    <span style="color:#484f58">—</span>
+                                                <% } %>
+                                            </td>
+                                            <td class="price-cell">R$ <%= item.price ? Number(item.price).toFixed(2) : '0.00' %></td>
+                                            <td>
+                                                <div class="action-btns">
+                                                    <button class="btn-icon edit btn-edit"
+                                                        data-id="<%= item.id %>"
+                                                        data-name="<%= item.name %>"
+                                                        data-category="<%= item.category || '' %>"
+                                                        data-price="<%= item.price || '' %>">
+                                                        ✏️ Editar
+                                                    </button>
+                                                    <form id="del-<%= item.id %>" action="/items/<%= item.id %>/delete" method="POST" style="margin:0">
+                                                        <button type="button" class="btn-icon delete btn-delete"
+                                                            data-id="<%= item.id %>"
+                                                            data-name="<%= item.name %>">
+                                                            🗑️ Excluir
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <% }) %>
+                                </tbody>
+                            </table>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Nova Marmita -->
+<div class="modal-overlay" id="modal-add">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3>➕ Nova Marmita</h3>
+            <button class="modal-close-btn" data-close>×</button>
+        </div>
+        <form action="/add-item?from=marmitas" method="POST">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="add-name">Nome</label>
+                    <input type="text" id="add-name" name="name" required placeholder="Ex: Marmita Fitness">
+                </div>
+                <div class="form-group">
+                    <label for="add-category">Categoria</label>
+                    <input type="text" id="add-category" name="category" placeholder="Ex: Premium">
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                    <label for="add-price">Preço (R$)</label>
+                    <input type="number" id="add-price" name="price" placeholder="0.00" step="0.01" min="0">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-modal cancel" data-close>Cancelar</button>
+                <button type="submit" class="btn-modal confirm">Cadastrar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Editar Marmita -->
+<div class="modal-overlay" id="modal-edit">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3>✏️ Editar Marmita</h3>
+            <button class="modal-close-btn" data-close>×</button>
+        </div>
+        <form id="edit-form" action="" method="POST">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="edit-name">Nome</label>
+                    <input type="text" id="edit-name" name="name" required placeholder="Ex: Marmita Fitness">
+                </div>
+                <div class="form-group">
+                    <label for="edit-category">Categoria</label>
+                    <input type="text" id="edit-category" name="category" placeholder="Ex: Premium">
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                    <label for="edit-price">Preço (R$)</label>
+                    <input type="number" id="edit-price" name="price" placeholder="0.00" step="0.01" min="0">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-modal cancel" data-close>Cancelar</button>
+                <button type="submit" class="btn-modal confirm">Salvar Alterações</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+    function openModal(id) { document.getElementById(id).classList.add('open'); }
+    function closeAll() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('open')); }
+
+    // Fechar ao clicar no overlay ou em [data-close]
+    document.querySelectorAll('.modal-overlay').forEach(m => {
+        m.addEventListener('click', (e) => { if (e.target === m) closeAll(); });
+    });
+    document.querySelectorAll('[data-close]').forEach(el => el.addEventListener('click', closeAll));
+
+    // Abrir modal de nova marmita
+    document.getElementById('btn-nova').addEventListener('click', () => openModal('modal-add'));
+
+    // Abrir modal de edição com dados do item
+    document.querySelectorAll('.btn-edit').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const { id, name, category, price } = btn.dataset;
+            document.getElementById('edit-name').value = name;
+            document.getElementById('edit-category').value = category;
+            document.getElementById('edit-price').value = price;
+            document.getElementById('edit-form').action = `/items/${id}/update`;
+            openModal('modal-edit');
+        });
+    });
+
+    // Confirmar exclusão
+    document.querySelectorAll('.btn-delete').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const { id, name } = btn.dataset;
+            if (confirm(`Deseja excluir "${name}"?\nEsta ação não pode ser desfeita.`)) {
+                document.getElementById(`del-${id}`).submit();
+            }
+        });
+    });
+})();
+</script>
+</body>
+</html>

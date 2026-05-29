@@ -41,6 +41,8 @@ app.set('views', path.join(__dirname, 'views'));
 
 app.get('/', (req, res) => res.render('login'));
 
+app.get('/register', (req, res) => res.render('register'));
+
 app.post('/login', async (req, res) => {
     const { username, password } = req.body;
     try {
@@ -54,39 +56,76 @@ app.post('/login', async (req, res) => {
                 const keyBuffer = Buffer.from(key, 'hex');
                 match = hashedBuffer.length === keyBuffer.length && crypto.timingSafeEqual(hashedBuffer, keyBuffer);
             }
-            if (match) res.redirect('/dashboard');
-            else res.send('<h1>Login Inválido</h1><a href="/">Voltar</a>');
-        } else {
-            res.send('<h1>Login Inválido</h1><a href="/">Voltar</a>');
+            if (match) return res.redirect('/dashboard');
         }
+        res.render('login', { error: 'Usuário ou senha inválidos.' });
     } catch (err) {
-        res.status(500).send("Erro no banco.");
+        console.error('❌ [AUTH] Erro no login:', err.message);
+        res.render('login', { error: 'Erro interno. Tente novamente.' });
     }
 });
 
 app.post('/register', async (req, res) => {
-    const { username, password } = req.body;
+    const { username, password, confirm_password } = req.body;
+    if (password !== confirm_password) {
+        return res.render('register', { error: 'As senhas não coincidem.' });
+    }
     try {
         const salt = crypto.randomBytes(16).toString('hex');
         const hash = crypto.scryptSync(password, salt, 64).toString('hex');
         const finalHash = `${salt}:${hash}`;
         await pool.query('INSERT INTO users (username, password) VALUES (?, ?)', [username, finalHash]);
-        res.send('<h1>Conta registrada com sucesso!</h1><a href="/">Ir para o Login</a>');
+        res.render('register', { success: 'Conta criada com sucesso! Faça login para continuar.' });
     } catch (err) {
-        if (err.code === 'ER_DUP_ENTRY') res.status(400).send("<h1>Usuário já existe.</h1><a href='/'>Voltar</a>");
-        else res.status(500).send("Erro no servidor.");
+        if (err.code === 'ER_DUP_ENTRY') {
+            res.render('register', { error: 'Este nome de usuário já está em uso.' });
+        } else {
+            console.error('❌ [AUTH] Erro no cadastro:', err.message);
+            res.render('register', { error: 'Erro interno. Tente novamente.' });
+        }
     }
 });
 
 // Rota para adicionar itens (ingredientes/marmitas)
 app.post('/add-item', async (req, res) => {
     const { name, category, price } = req.body;
+    const redirectTo = req.query.from === 'marmitas' ? '/marmitas' : '/dashboard';
     try {
         await pool.query('INSERT INTO items (name, category, price) VALUES (?, ?, ?)', [name, category || null, price || 0]);
-        res.redirect('/dashboard');
+        res.redirect(redirectTo);
     } catch (err) {
         console.error('❌ [ITEMS] Erro ao cadastrar item:', err.message);
         res.status(500).send("Erro ao cadastrar item.");
+    }
+});
+
+// Rota para atualizar uma marmita
+app.post('/items/:id/update', async (req, res) => {
+    const { name, category, price } = req.body;
+    const { id } = req.params;
+    try {
+        await pool.query(
+            'UPDATE items SET name = ?, category = ?, price = ? WHERE id = ?',
+            [name, category || null, price || 0, id]
+        );
+        console.log(`✅ [ITEMS] Marmita #${id} atualizada.`);
+        res.redirect('/marmitas');
+    } catch (err) {
+        console.error('❌ [ITEMS] Erro ao atualizar item:', err.message);
+        res.status(500).send("Erro ao atualizar item.");
+    }
+});
+
+// Rota para excluir uma marmita
+app.post('/items/:id/delete', async (req, res) => {
+    const { id } = req.params;
+    try {
+        await pool.query('DELETE FROM items WHERE id = ?', [id]);
+        console.log(`🗑️ [ITEMS] Marmita #${id} excluída.`);
+        res.redirect('/marmitas');
+    } catch (err) {
+        console.error('❌ [ITEMS] Erro ao excluir item:', err.message);
+        res.status(500).send("Erro ao excluir item.");
     }
 });
 
@@ -162,7 +201,12 @@ app.get('/dashboard', async (req, res) => {
          JOIN items ON orders.item_id = items.id
          ORDER BY orders.created_at DESC`
     );
-    res.render('dashboard', { items, orders });
+    res.render('dashboard', { items, orders, page: 'dashboard' });
+});
+
+app.get('/marmitas', async (req, res) => {
+    const [items] = await pool.query('SELECT * FROM items ORDER BY id DESC');
+    res.render('marmitas', { items, page: 'marmitas' });
 });
 
 connectWithRetry().then(() => {

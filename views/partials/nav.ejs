@@ -1,0 +1,11 @@
+<nav class="nav-sidebar">
+    <p class="nav-label">Menu</p>
+    <a href="/dashboard" class="nav-item <%= locals.page === 'dashboard' ? 'active' : '' %>">
+        <span class="nav-icon">📊</span>
+        <span>Dashboard</span>
+    </a>
+    <a href="/marmitas" class="nav-item <%= locals.page === 'marmitas' ? 'active' : '' %>">
+        <span class="nav-icon">🍱</span>
+        <span>Marmitas</span>
+    </a>
+</nav>

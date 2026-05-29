@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MarmitaTech PRO - Login</title>
+    <title>MarmitaTech PRO - Cadastro</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
@@ -15,16 +15,18 @@
         .header-brand .logo{font-size:28px}
         .header-brand h1{font-size:20px;font-weight:700;background:linear-gradient(135deg,#58a6ff,#a371f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
         .header-brand span{font-size:11px;color:#8b949e;text-transform:uppercase;letter-spacing:1.5px}
+        .header-actions a{color:#8b949e;text-decoration:none;font-size:13px;padding:8px 16px;border-radius:8px;transition:all .2s;border:1px solid transparent}
+        .header-actions a:hover{color:#e1e4e8;background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.08)}
 
         /* Layout */
         .page-body{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 16px}
 
         /* Card */
-        .card{background:linear-gradient(135deg,rgba(22,27,34,.9),rgba(28,35,51,.7));border:1px solid rgba(255,255,255,.06);border-radius:14px;overflow:hidden;width:100%;max-width:380px;transition:border-color .3s}
+        .card{background:linear-gradient(135deg,rgba(22,27,34,.9),rgba(28,35,51,.7));border:1px solid rgba(255,255,255,.06);border-radius:14px;overflow:hidden;width:100%;max-width:420px;transition:border-color .3s}
         .card:hover{border-color:rgba(255,255,255,.1)}
         .card-header{padding:24px 28px 20px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:10px}
         .card-header h2{font-size:18px;font-weight:700}
-        .card-header .badge{font-size:11px;padding:2px 10px;border-radius:100px;background:rgba(88,166,255,.12);color:#58a6ff;font-weight:600}
+        .card-header .badge{font-size:11px;padding:2px 10px;border-radius:100px;background:rgba(163,113,247,.12);color:#a371f7;font-weight:600}
         .card-body{padding:28px}
 
         /* Form */
@@ -32,12 +34,13 @@
         .form-group label{display:block;font-size:11px;font-weight:600;color:#8b949e;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
         .form-group input{width:100%;padding:10px 12px;background:rgba(13,17,23,.6);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#e1e4e8;font-size:14px;font-family:'Inter',sans-serif;outline:none;transition:all .2s}
         .form-group input::placeholder{color:#484f58}
-        .form-group input:focus{border-color:#58a6ff;box-shadow:0 0 0 3px rgba(88,166,255,.1)}
+        .form-group input:focus{border-color:#a371f7;box-shadow:0 0 0 3px rgba(163,113,247,.1)}
+        .form-hint{font-size:11px;color:#484f58;margin-top:4px}
 
         /* Buttons */
         .btn{width:100%;padding:11px 16px;border:none;border-radius:8px;font-size:14px;font-weight:600;font-family:'Inter',sans-serif;cursor:pointer;transition:all .25s;display:flex;align-items:center;justify-content:center;gap:6px;text-decoration:none}
-        .btn-primary{background:linear-gradient(135deg,#58a6ff,#388bfd);color:#fff;box-shadow:0 4px 14px rgba(88,166,255,.25)}
-        .btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(88,166,255,.35)}
+        .btn-secondary{background:linear-gradient(135deg,#a371f7,#8957e5);color:#fff;box-shadow:0 4px 14px rgba(163,113,247,.25)}
+        .btn-secondary:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(163,113,247,.35)}
         .btn-outline{background:transparent;color:#8b949e;border:1px solid rgba(255,255,255,.1);margin-top:10px}
         .btn-outline:hover{color:#e1e4e8;background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.2)}
 
@@ -46,10 +49,9 @@
         .divider hr{flex:1;border:none;border-top:1px solid rgba(255,255,255,.06)}
         .divider span{font-size:11px;color:#484f58;white-space:nowrap}
 
-        /* Toast */
-        .toast{position:fixed;bottom:24px;right:24px;padding:14px 24px;border-radius:10px;font-size:13px;font-weight:600;color:#fff;z-index:1000;transform:translateY(100px);opacity:0;transition:all .3s ease;pointer-events:none}
-        .toast.show{transform:translateY(0);opacity:1}
-        .toast.error{background:linear-gradient(135deg,#da3633,#f85149)}
+        /* Alert */
+        .alert-error{background:rgba(218,54,51,.12);border:1px solid rgba(248,81,73,.2);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#f85149}
+        .alert-success{background:rgba(46,160,67,.12);border:1px solid rgba(63,185,80,.2);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#3fb950}
     </style>
 </head>
 <body>
@@ -62,45 +64,53 @@
             <span>Sistema de Gestão</span>
         </div>
     </div>
+    <div class="header-actions">
+        <a href="/">Já tenho conta</a>
+    </div>
 </header>
 
 <div class="page-body">
     <div class="card">
         <div class="card-header">
-            <h2>Acesso ao Sistema</h2>
-            <span class="badge">Login</span>
+            <h2>Criar Conta</h2>
+            <span class="badge">Cadastro</span>
         </div>
         <div class="card-body">
             <% if (locals.error) { %>
-            <div style="background:rgba(218,54,51,.12);border:1px solid rgba(248,81,73,.2);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#f85149;">
-                <%= error %>
-            </div>
+            <div class="alert-error"><%= error %></div>
+            <% } %>
+            <% if (locals.success) { %>
+            <div class="alert-success"><%= success %></div>
             <% } %>
 
-            <form action="/login" method="POST">
+            <form action="/register" method="POST">
                 <div class="form-group">
-                    <label for="username">Usuário</label>
-                    <input type="text" id="username" name="username" placeholder="Digite seu usuário" required autocomplete="username">
+                    <label for="username">Nome de usuário</label>
+                    <input type="text" id="username" name="username" placeholder="Escolha um usuário" required autocomplete="username" minlength="3">
+                    <p class="form-hint">Mínimo de 3 caracteres.</p>
                 </div>
                 <div class="form-group">
                     <label for="password">Senha</label>
-                    <input type="password" id="password" name="password" placeholder="Digite sua senha" required autocomplete="current-password">
+                    <input type="password" id="password" name="password" placeholder="Crie uma senha segura" required autocomplete="new-password" minlength="6">
+                    <p class="form-hint">Mínimo de 6 caracteres.</p>
                 </div>
-                <button type="submit" class="btn btn-primary">Entrar no Sistema</button>
+                <div class="form-group">
+                    <label for="confirm_password">Confirmar senha</label>
+                    <input type="password" id="confirm_password" name="confirm_password" placeholder="Repita a senha" required autocomplete="new-password">
+                </div>
+                <button type="submit" class="btn btn-secondary">Criar minha conta</button>
             </form>
 
             <div class="divider">
                 <hr>
-                <span>Novo por aqui?</span>
+                <span>Já tem uma conta?</span>
                 <hr>
             </div>
 
-            <a href="/register" class="btn btn-outline">Criar uma conta</a>
+            <a href="/" class="btn btn-outline">Fazer login</a>
         </div>
     </div>
 </div>
-
-<div class="toast" id="toast"></div>
 
 </body>
 </html>

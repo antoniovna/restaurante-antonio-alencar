@@ -18,7 +18,7 @@ services:
       retries: 10
 
   app:
-    build: .
+    image: antoniovna3434/restaurante-antonio:latest
     container_name: marmitatech-app
     ports:
       - "3000:3000"

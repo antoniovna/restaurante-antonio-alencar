@@ -4,7 +4,7 @@ services:
     container_name: marmitatech-db
     environment:
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: marmitadb
+      MYSQL_DATABASE: restaurante-antonio-db
       MYSQL_USER: user
       MYSQL_PASSWORD: password
     ports:
@@ -18,15 +18,22 @@ services:
       retries: 10
 
   app:
-    image: antoniovna3434/restaurante-antonio:latest
-    container_name: marmitatech-app
+    build: .
+    image: antoniovna3434/restaurante-antonio:staging
+    container_name: restaurante-antonio-container
     ports:
-      - "3000:3000"
+      - "9101:3000"
     environment:
-      DB_HOST: db
-      DB_USER: user
+      DB_HOST: mysql-infra
+      DB_PORT: 3306
+      DB_USER: root
       DB_PASS: password
-      DB_NAME: marmitadb
+      DB_NAME: restaurante-antonio-db
+    networks:
+      - rede_alunos
+  networks:
+    rede_alunos:
+      external: true
     depends_on:
       db:
         condition: service_healthy

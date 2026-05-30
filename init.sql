@@ -1,3 +1,6 @@
+CREATE DATABASE IF NOT EXISTS restaurante-antonio-db;
+USE restaurante-antonio-db;
+
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,

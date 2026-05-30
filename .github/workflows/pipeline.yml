@@ -130,7 +130,7 @@ jobs:
   # Gera duas tags: :staging (mutável) e :SHA (imutável, para rollback)
   # ============================================================================
   job_release_docker:
-    needs: job_sonar
+    needs: estagio_lint
     if: github.ref == 'refs/heads/staging'
     runs-on: ubuntu-latest
     steps:
@@ -267,15 +267,15 @@ jobs:
       - name: Checkout do código
         uses: actions/checkout@v4
 
-      - name: Enviar docker-compose.staging.yml via SCP
+      - name: Enviar docker-compose.staging.yml e init.sql via SCP
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "docker-compose.staging.yml"
+          source: "docker-compose.staging.yml,init.sql"
           target: "/home/${{ secrets.SSH_USER }}/app"
- 
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -284,6 +284,12 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /home/${{ secrets.SSH_USER }}/app
+
+            echo "⏳ Executando init.sql no container mysql-infra..."
+            sudo docker exec -i mysql-infra \
+              mysql -u root -ppassword < init.sql
+            echo "✅ init.sql executado com sucesso!"
+
             docker compose -f docker-compose.staging.yml pull
             docker compose -f docker-compose.staging.yml up -d --remove-orphans
             echo "✅ Deploy staging concluído com sucesso"

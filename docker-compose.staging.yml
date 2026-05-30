@@ -1,32 +1,21 @@
 services:
-  db:
-    image: mysql:8.0
-    container_name: marmitatech-db
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
-      MYSQL_DATABASE: restaurante-antonio-db
-      MYSQL_USER: ${MYSQL_USER:-user}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-password}
-    ports:
-      - "3306:3306"
-    volumes:
-      - db_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   app:
+    build: .
     image: antoniovna3434/restaurante-antonio:staging
-    container_name: marmitatech-app
+    container_name: restaurante-antonio-container
     ports:
-      - "3000:3000"
+      - "9101:3000"
     environment:
-      DB_HOST: db
-      DB_USER: ${MYSQL_USER:-user}
-      DB_PASS: ${MYSQL_PASSWORD:-password}
-      DB_NAME: marmitadb
+      DB_HOST: mysql-infra
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASS: password
+      DB_NAME: restaurante-antonio-db
+    networks:
+      - rede_alunos
+  networks:
+    rede_alunos:
+      external: true
     depends_on:
       db:
         condition: service_healthy

@@ -290,6 +290,6 @@ jobs:
               mysql -u root -ppassword < init.sql
             echo "✅ init.sql executado com sucesso!"
 
-            docker compose -f docker-compose.staging.yml pull
-            docker compose -f docker-compose.staging.yml up -d --remove-orphans
+            sudo docker compose -f docker-compose.staging.yml pull
+            sudo docker compose -f docker-compose.staging.yml up -d --remove-orphans
             echo "✅ Deploy staging concluído com sucesso"

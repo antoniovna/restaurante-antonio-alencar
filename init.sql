@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS orders (
     FOREIGN KEY (item_id) REFERENCES items(id)
 );
 
-INSERT INTO users (username, password) VALUES ('admin', '$2a$10$vI8aWBnW3fID.ZQ4/zo1G.q1lRps.9cGLcZEiGDMVr5yUP1KUOYTa');
+INSERT IGNORE INTO users (username, password) VALUES ('admin', '$2a$10$vI8aWBnW3fID.ZQ4/zo1G.q1lRps.9cGLcZEiGDMVr5yUP1KUOYTa');
 INSERT INTO items (name, category, price) VALUES
     ('Marmita Fit', 'Fitness', 18.90),
     ('Marmita Executiva', 'Premium', 24.90),

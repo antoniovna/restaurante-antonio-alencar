@@ -1,6 +1,5 @@
 services:
   app:
-    build: .
     image: antoniovna3434/restaurante-antonio:staging
     container_name: restaurante-antonio-container
     ports:
@@ -13,12 +12,7 @@ services:
       DB_NAME: restaurante-antonio-db
     networks:
       - rede_alunos
-  networks:
-    rede_alunos:
-      external: true
-    depends_on:
-      db:
-        condition: service_healthy
 
-volumes:
-  db_data:
+networks:
+  rede_alunos:
+    external: true

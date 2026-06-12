@@ -244,15 +244,12 @@ jobs:
           args: >
             -Dsonar.branch.name=${{ github.ref_name }}
 
-      # -----------------------------------------------------------------
-      # QUALITY GATE — Descomentar quando o SonarQube tiver QG configurado
-      # -----------------------------------------------------------------
-      # - name: Sonar Quality Gate
-      #   uses: sonarsource/sonarqube-quality-gate-action@master
-      #   timeout-minutes: 5
-      #   env:
-      #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      #     SONAR_HOST_URL: "https://devsecops.dcotech.com.br"
+      - name: Sonar Quality Gate
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: "https://devsecops.dcotech.com.br"
 
   # ============================================================================
   # JOB DEPLOY STAGING — Deploy na AWS via SCP + SSH
